@@ -10,9 +10,13 @@ import os
 import base64
 
 # data
-veg_df = pd.read_csv(r'data/GEO_Dysart_20210408_grow15_fall5.csv')
-df = veg_df[['longitude', 'latitude', 'vegetation_height', 'h_conductor']]
-circuits_lat_long = {'Dysart': [-116.90, 33.90],'Goleta Santa Clara No. 1': [-117.23, 33.90]}
+dysart = pd.read_csv(r'data/GEO_Dysart_20210408_grow15_fall5.csv')
+sample = pd.read_csv(r'data/sample.csv')
+df1 = dysart[['longitude', 'latitude', 'vegetation_height', 'h_conductor']]
+df2 = sample[['longitude','latitude', 'vegetation_height', 'h_conductor']]
+
+locations = {'Dysart': df1,'Goleta Santa Clara No. 1': df2}
+initial_latlong = {'Dysart': [-116.9083,33.9057],'Goleta Santa Clara No. 1': [-118.6730,37.5728]}
 
 
 # page layout details
@@ -23,7 +27,6 @@ st.write('Please use the dropdowns and sliders to modify which circuits you woul
 
 
 # graph components 
-
 # custom color function
 def hex_to_RGB(hex):
     ''' "#FFFFFF" -> [255,255,255] '''
@@ -51,20 +54,18 @@ def linear_gradient(df_length, start_hex, finish_hex="#FFFFFF"):
         RGB_list.append(curr_vector)
     return RGB_list
 
-df = df.sort_values(by=['vegetation_height'])
-color_df = pd.DataFrame(linear_gradient(len(df), "#4682B4", "#FFB347"), columns=['r','g','b'])
-df = pd.concat([df, color_df], axis=1)
-
-
 def pydeck_map(df, lat, long):
+    df = df.sort_values(by=['vegetation_height']).reset_index(drop=True)
+    color_df = pd.DataFrame(linear_gradient(len(df), "#FAF3DD", "#4A7C59"), columns=['r','g','b'])
+    #df = df.drop(columns=['r','g','b'])
+    df = pd.concat([df, color_df], axis = 1)
     return st.pydeck_chart(pdk.Deck(
         map_style='mapbox://styles/mapbox/light-v9',
         initial_view_state=pdk.ViewState(
             latitude=lat,
             longitude=long,
             zoom=13,
-            pitch=0,
-            ),
+            pitch=0),
             layers=[
             pdk.Layer(
                 'ScatterplotLayer',
@@ -82,14 +83,12 @@ def pydeck_map(df, lat, long):
         tooltip={"html": "<b>Tree Height: </b> {vegetation_height} ft<br><b>Conductor Height: </b> {h_conductor} ft</br>", "style": {"color": "white"}}
     ))
 
-def plotly_map(df):
-    fig = px.scatter_mapbox(df, lat='latitude', lon='longitude')
-    fig.update_layout(mapbox_style='open-street-map')
+def histogram(df):
+    fig = px.histogram(df['vegetation_height'])
+    return st.plotly_chart(fig, use_container_width=True)
 
-    return st.plotly_chart(fig, use_container_width=False)
 
 # sidebar
-
 # logo and adding link to logo image
 @st.cache(allow_output_mutation=True)
 def get_base64_of_bin_file(bin_file):
@@ -109,31 +108,29 @@ def get_img_with_href(local_img_path, target_url):
 
 png_html = get_img_with_href('data/geologo_removed.png', 'www.geo1.com')
 
+
 # sidebar components
 #st.sidebar.markdown(png_html, unsafe_allow_html=True)
 st.sidebar.image(r'data/geologo_removed.png', use_column_width=True)
 
-st.sidebar.header('1. Which Circuits Would You Like to View?')
-circuits = st.sidebar.selectbox('Select', ('Dysart', 'Goleta Santa Clara No. 1'))
+st.sidebar.header('1. Which Area Would You Like to View and Filter?')
+circuits = st.sidebar.selectbox('Location', ('Dysart', 'Goleta Santa Clara No. 1'))
 
 st.sidebar.header('2. Which Attributes Would You Like to View?')
-options = st.sidebar.multiselect('Select',('Vegetation Height', 'Conductor Height'))
-
+options = st.sidebar.multiselect('Attributes',('Vegetation Height', 'Conductor Height'))
 
 veg_height_slider = 0
 conductor_height_slider = 0
 st.sidebar.header('3. Filters')
 if 'Vegetation Height' in options:
-    veg_height_slider = st.sidebar.slider('Vegetation Height', df.vegetation_height.min(), df.vegetation_height.max(), (float(df.vegetation_height.quantile(0.25)), float(df.vegetation_height.quantile(0.75))), 0.1)
+    veg_height_slider = st.sidebar.slider('Vegetation Height', locations[circuits].vegetation_height.min(), locations[circuits].vegetation_height.max(), (float(locations[circuits].vegetation_height.min())+3, float(locations[circuits].vegetation_height.max())-3), 0.1)
 if 'Conductor Height' in options:
-    conductor_height_slider = st.sidebar.slider('Conductor Height', df.h_conductor.min(), df.h_conductor.max(), (float(df.h_conductor.quantile(0.25)), float(df.h_conductor.quantile(0.75))), 0.1)
+    conductor_height_slider = st.sidebar.slider('Conductor Height', locations[circuits].h_conductor.min(), locations[circuits].h_conductor.max(), (float(locations[circuits].h_conductor.min())+3, float(locations[circuits].h_conductor.max())-3), 0.1)
 #with st.sidebar.header('4. Download Your Data'):
     #downloaded_files = st.download_button(label = '📥 Download Current Result', data=df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])].to_csv(),filename = "my_tree_results.csv")
 
 
-
 # functionalities 
-
 def choose_coloring():
     # split update_map() into smaller methods
     pass
@@ -144,64 +141,72 @@ def update_points_filtering_color(df):
 
 def update_map():
     if (veg_height_slider == 0) and (conductor_height_slider == 0):
-        return pydeck_map(df, circuits_lat_long[circuits][1], circuits_lat_long[circuits][0])
+        return pydeck_map(locations[circuits], initial_latlong[circuits][1], initial_latlong[circuits][0])
+
     
     if (veg_height_slider == 0) and (conductor_height_slider != 0):
         if conductor_height_slider[0] == conductor_height_slider[1]:
             return st.info("**Error**: No data available to display, please input a range")
         else:
-            filtered_df = df.loc[(df['h_conductor']>=conductor_height_slider[0]) & (df['h_conductor']<=conductor_height_slider[1])]
-            filtered_df = filtered_df.sort_values(by=['vegetation_height'])
-            filtered_df = filtered_df.reset_index()
-            color_df = pd.DataFrame(linear_gradient(len(filtered_df), "#4682B4", "#FFB347"), columns=['r','g','b'])
-            filtered_df[['r','g','b']] = color_df
-            filtered_df = filtered_df.drop(columns=['r','g','b'])
-            filtered_df = pd.concat([filtered_df, color_df], axis = 1)
-            return pydeck_map(filtered_df, circuits_lat_long[circuits][1], circuits_lat_long[circuits][0])
+            filtered_df = locations[circuits].loc[(locations[circuits]['h_conductor']>=conductor_height_slider[0]) & (locations[circuits]['h_conductor']<=conductor_height_slider[1])]
+            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
     if (veg_height_slider != 0) and (conductor_height_slider == 0):
         if veg_height_slider[0] == veg_height_slider[1]:
             return st.info("**Error**: No data available to display, please input a range")
         else:
-            filtered_df = df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])]
-            filtered_df = filtered_df.sort_values(by=['vegetation_height'])
-            filtered_df = filtered_df.reset_index()       
-            color_df = pd.DataFrame(linear_gradient(len(filtered_df), "#4682B4", "#FFB347"), columns=['r','g','b'])
-            filtered_df = filtered_df.drop(columns=['r','g','b'])
-            filtered_df = pd.concat([filtered_df, color_df], axis = 1)
-            return pydeck_map(filtered_df, circuits_lat_long[circuits][1], circuits_lat_long[circuits][0])
+            filtered_df = locations[circuits].loc[(locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1])]
+            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
     if (veg_height_slider !=0) and (conductor_height_slider != 0):
         if (veg_height_slider[0] == veg_height_slider[1]) or (conductor_height_slider[0] == conductor_height_slider[1]):
             return st.info("**Error**: No data available to display, please input a range")
         else:
-            filtered_df = df.loc[((df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1]))]
+            filtered_df = locations[circuits].loc[((locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1]))]
             filtered_df2 = filtered_df[(filtered_df['h_conductor']>=conductor_height_slider[0]) & (filtered_df['h_conductor']<=conductor_height_slider[1])]
-            filtered_df2 = filtered_df2.sort_values(by=['vegetation_height'])
-            filtered_df2 = filtered_df2.reset_index()
-            color_df = pd.DataFrame(linear_gradient(len(filtered_df2), "#4682B4", "#FFB347"), columns=['r','g','b'])
-            filtered_df2 = filtered_df2.drop(columns=['r','g','b'])
-            filtered_df2 = pd.concat([filtered_df2, color_df], axis = 1)
-            return pydeck_map(filtered_df2, circuits_lat_long[circuits][1], circuits_lat_long[circuits][0])
-    
+            return pydeck_map(filtered_df2, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-def update_graph():
-    filtered_df = df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])]
-    fig = px.histogram(filtered_df['vegetation_height'])
-    return st.plotly_chart(fig, use_container_width=True)
+def update_graph(df):
+    if (veg_height_slider == 0) and (conductor_height_slider == 0):
+        return histogram(df)
+    else:
+        return histogram(df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])])
 
 def display_number_filtered():
-    filtered_df = df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])]
-    filtered_df2 = filtered_df[(filtered_df['h_conductor']>=conductor_height_slider[0]) & (filtered_df['h_conductor']<=conductor_height_slider[1])]
-    return st.write('The number of trees filtered is' + str(len(filtered_df2)))
+    if (veg_height_slider == 0) and (conductor_height_slider == 0):
+        return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
+    
+    if (veg_height_slider == 0) and (conductor_height_slider != 0):
+        if conductor_height_slider[0] == conductor_height_slider[1]:
+            pass
+        else:
+            filtered_df = locations[circuits].loc[(locations[circuits]['h_conductor']>=conductor_height_slider[0]) & (locations[circuits]['h_conductor']<=conductor_height_slider[1])]
+            return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
+
+    if (veg_height_slider != 0) and (conductor_height_slider == 0):
+        if veg_height_slider[0] == veg_height_slider[1]:
+            pass
+        else:
+            filtered_df = locations[circuits].loc[(locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1])]
+            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+
+    if (veg_height_slider !=0) and (conductor_height_slider != 0):
+        if (veg_height_slider[0] == veg_height_slider[1]) or (conductor_height_slider[0] == conductor_height_slider[1]):
+            pass
+        else:
+            filtered_df = locations[circuits].loc[((locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1]))]
+            filtered_df2 = filtered_df[(filtered_df['h_conductor']>=conductor_height_slider[0]) & (filtered_df['h_conductor']<=conductor_height_slider[1])]
+            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
+
 
 # run all functions
-
+display_number_filtered()
 update_map()
+#update_graph(locations[circuits])
 
 
-#display_number_filtered()
-
-#update_graph()
+# if st.button('Reset Map View'):
+#     pydeck_map(locations[circuits], 0, 0)
+#     pdk.data_utils.viewport_helpers.compute_view(locations[circuits])
 
 
