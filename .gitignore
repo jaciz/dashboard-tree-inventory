@@ -1,2 +1,4 @@
 /.DS_Store
 /streamlit.cer
+/rootkey.csv
+/.streamlit/secrets.toml
