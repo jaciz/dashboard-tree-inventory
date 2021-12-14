@@ -24,22 +24,69 @@ import s3fs
 # content = read_file(r"s3://dashboard-tree-inventory/sample.csv")
 
 
+# network centerline shapefiles
+# network1 = gpd.read_file()
+# network2 = gpd.read_file()
 
-# data
-dysart = pd.read_csv(r'data/GEO_Dysart_20210408_grow15_fall5.csv')
-sample = pd.read_csv(r'data/sample.csv')
-df1 = dysart[['longitude', 'latitude', 'vegetation_height', 'h_conductor']]
-df2 = sample[['longitude','latitude', 'vegetation_height', 'h_conductor']]
 
-locations = {'Dysart': df1,'Goleta Santa Clara No. 1': df2}
-initial_latlong = {'Dysart': [-116.9083,33.9057],'Goleta Santa Clara No. 1': [-118.6730,37.5728]}
+# vegetation data
+veg1 = pd.read_csv(r'data/ElNido_TreeCounts.csv')
+veg2 = pd.read_csv(r'data/BarreVillaPark_TreeCounts.csv')
+df1 = veg1[['LONGITUDE', 'LATITUDE', 'HEIGHT', 'AVG_SPREAD']]
+df2 = veg2[['LONGITUDE','LATITUDE', 'HEIGHT', 'AVG_SPREAD']]
 
+
+locations = {'El Nido-La Cienega': df1,'Barre-Villa Park': df2}
+initial_latlong = {'El Nido-La Cienega': [-118.3697,33.9710],'Barre-Villa Park': [-117.9146,33.80742]}
 
 # page layout details
 st.set_page_config(page_title='Vegetation Violations Inventory', page_icon="🌲", layout='wide')
 
 st.title('Tree Inventory')
 st.write('Please use the dropdowns and sliders to modify which circuits you would like to see the tree inventory for.')
+
+# sidebar
+# logo and adding link to logo image
+@st.cache(allow_output_mutation=True)
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+@st.cache(allow_output_mutation=True)
+def get_img_with_href(local_img_path, target_url):
+    img_format = os.path.splitext(local_img_path)[-1].replace('.', '')
+    bin_str = get_base64_of_bin_file(local_img_path)
+    html_code = f'''
+        <a href="{target_url}">
+            <img src="data:image/{img_format};base64,{bin_str}" />
+        </a>'''
+    return html_code
+
+png_html = get_img_with_href('data/geologo_smaller1.png', 'http://www.geo1.com')
+
+
+# sidebar components
+st.sidebar.markdown(png_html, unsafe_allow_html=True)
+#st.sidebar.image(r'data/geologo_smaller1.png')#, use_column_width=True)
+st.sidebar.write("")
+st.sidebar.write("")
+st.sidebar.header('1. Which Area Would You Like to View and Filter?')
+circuits = st.sidebar.selectbox('Location', ('El Nido-La Cienega', 'Barre-Villa Park'))
+
+st.sidebar.header('2. Which Attributes Would You Like to View?')
+options = st.sidebar.multiselect('Attributes',('Vegetation Height', 'Average Canopy Spread'))
+
+veg_height_slider = 0
+canopy_spread_slider = 0
+st.sidebar.header('3. Filters')
+if 'Vegetation Height' in options:
+    veg_height_slider = st.sidebar.slider('Vegetation Height (feet)', locations[circuits]['HEIGHT'].min(), locations[circuits]['HEIGHT'].max(), (float(locations[circuits]['HEIGHT'].min())+2, float(locations[circuits]['HEIGHT'].max())-2), 0.1)
+if 'Average Canopy Spread' in options:
+    canopy_spread_slider = st.sidebar.slider('Average Canopy Spread (feet)', locations[circuits]['AVG_SPREAD'].min(), locations[circuits]['AVG_SPREAD'].max(), (float(locations[circuits]['AVG_SPREAD'].min())+2, float(locations[circuits]['AVG_SPREAD'].max())-2), 0.1)
+
+attributes = {'Vegetation Height':locations[circuits]['HEIGHT'], 'Average Canopy Spread':locations[circuits]['HEIGHT']}
+
 
 
 # graph components 
@@ -71,7 +118,7 @@ def linear_gradient(df_length, start_hex, finish_hex="#FFFFFF"):
     return RGB_list
 
 def pydeck_map(df, lat, long):
-    df = df.sort_values(by=['vegetation_height']).reset_index(drop=True)
+    df = df.sort_values(by=['HEIGHT']).reset_index(drop=True)
     color_df = pd.DataFrame(linear_gradient(len(df), "#FAF3DD", "#4A7C59"), columns=['r','g','b'])
     #df = df.drop(columns=['r','g','b'])
     df = pd.concat([df, color_df], axis = 1)
@@ -86,7 +133,7 @@ def pydeck_map(df, lat, long):
             pdk.Layer(
                 'ScatterplotLayer',
                 data=df,
-                get_position=['longitude', 'latitude'],
+                get_position=['LONGITUDE', 'LATITUDE'],
                 auto_highlight=True,
                 get_color=['r','g','b'],
                 get_radius=20,
@@ -96,54 +143,30 @@ def pydeck_map(df, lat, long):
                 pickable=True,
             )
         ],
-        tooltip={"html": "<b>Tree Height: </b> {vegetation_height} ft<br><b>Conductor Height: </b> {h_conductor} ft</br>", "style": {"color": "white"}}
+        tooltip={"html": "<b>Tree Height: </b> {HEIGHT} ft<br><b>Average Canopy Spread: </b> {AVG_SPREAD} ft</br>", "style": {"color": "white"}}
     ))
 
 def histogram(df):
-    fig = px.histogram(df['vegetation_height'])
+    fig = px.histogram(df['HEIGHT'], color_discrete_sequence=['#013220'])
+    fig.update_layout(
+    margin=dict(l=10, r=10, t=0, b=0),
+    yaxis=dict(
+        title_text="Count",
+        titlefont=dict(size=15),
+    ),
+    xaxis=dict(
+        title_text="Vegetation Height",
+        titlefont=dict(size=15)
+    ),
+    showlegend=False,
+    bargap = 0.02
+    )
     return st.plotly_chart(fig, use_container_width=True)
 
-
-# sidebar
-# logo and adding link to logo image
-@st.cache(allow_output_mutation=True)
-def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-@st.cache(allow_output_mutation=True)
-def get_img_with_href(local_img_path, target_url):
-    img_format = os.path.splitext(local_img_path)[-1].replace('.', '')
-    bin_str = get_base64_of_bin_file(local_img_path)
-    html_code = f'''
-        <a href="{target_url}">
-            <img src="data:image/{img_format};base64,{bin_str}" />
-        </a>'''
-    return html_code
-
-png_html = get_img_with_href('data/geologo_removed.png', 'www.geo1.com')
+def dataframe_table(df):
+    return st.dataframe(df, height = 410)
 
 
-# sidebar components
-#st.sidebar.markdown(png_html, unsafe_allow_html=True)
-st.sidebar.image(r'data/geologo_removed.png', use_column_width=True)
-
-st.sidebar.header('1. Which Area Would You Like to View and Filter?')
-circuits = st.sidebar.selectbox('Location', ('Dysart', 'Goleta Santa Clara No. 1'))
-
-st.sidebar.header('2. Which Attributes Would You Like to View?')
-options = st.sidebar.multiselect('Attributes',('Vegetation Height', 'Conductor Height'))
-
-veg_height_slider = 0
-conductor_height_slider = 0
-st.sidebar.header('3. Filters')
-if 'Vegetation Height' in options:
-    veg_height_slider = st.sidebar.slider('Vegetation Height (feet)', locations[circuits].vegetation_height.min(), locations[circuits].vegetation_height.max(), (float(locations[circuits].vegetation_height.min())+3, float(locations[circuits].vegetation_height.max())-3), 0.1)
-if 'Conductor Height' in options:
-    conductor_height_slider = st.sidebar.slider('Conductor Height (feet)', locations[circuits].h_conductor.min(), locations[circuits].h_conductor.max(), (float(locations[circuits].h_conductor.min())+3, float(locations[circuits].h_conductor.max())-3), 0.1)
-#with st.sidebar.header('4. Download Your Data'):
-    #downloaded_files = st.download_button(label = '📥 Download Current Result', data=df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])].to_csv(),filename = "my_tree_results.csv")
 
 
 # functionalities 
@@ -156,69 +179,141 @@ def update_points_filtering_color(df):
     pass
 
 def update_map():
-    if (veg_height_slider == 0) and (conductor_height_slider == 0):
+    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
         return pydeck_map(locations[circuits], initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-    
-    if (veg_height_slider == 0) and (conductor_height_slider != 0):
-        if conductor_height_slider[0] == conductor_height_slider[1]:
+    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+        if canopy_spread_slider[0] == canopy_spread_slider[1]:
             return st.info("**Error**: No data available to display, please input a range")
+        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**: No data available to display, please input another range")
         else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['h_conductor']>=conductor_height_slider[0]) & (locations[circuits]['h_conductor']<=conductor_height_slider[1])]
             return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-    if (veg_height_slider != 0) and (conductor_height_slider == 0):
+    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
         if veg_height_slider[0] == veg_height_slider[1]:
             return st.info("**Error**: No data available to display, please input a range")
+        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**: No data available to display, please input another range")
         else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1])]
             return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-    if (veg_height_slider !=0) and (conductor_height_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (conductor_height_slider[0] == conductor_height_slider[1]):
+    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
             return st.info("**Error**: No data available to display, please input a range")
+        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df2)==0:
+            return st.info("**Error**: No data available to display, please input another range")
         else:
-            filtered_df = locations[circuits].loc[((locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1]))]
-            filtered_df2 = filtered_df[(filtered_df['h_conductor']>=conductor_height_slider[0]) & (filtered_df['h_conductor']<=conductor_height_slider[1])]
             return pydeck_map(filtered_df2, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
 def update_graph(df):
-    if (veg_height_slider == 0) and (conductor_height_slider == 0):
+    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
         return histogram(df)
-    else:
-        return histogram(df.loc[(df['vegetation_height']>=veg_height_slider[0]) & (df['vegetation_height']<=veg_height_slider[1])])
+
+    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+        if canopy_spread_slider[0] == canopy_spread_slider[1]:
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**")
+        else:
+            return histogram(filtered_df)
+
+    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
+        if veg_height_slider[0] == veg_height_slider[1]:
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**")
+        else:
+            return histogram(filtered_df)
+
+    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df2)==0:
+            return st.info("**Error**")
+        else:
+            return histogram(filtered_df2)
+
+def update_table(df):
+    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
+        return dataframe_table(df)
+
+    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+        if canopy_spread_slider[0] == canopy_spread_slider[1]:
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**")
+        else:
+            return dataframe_table(filtered_df)
+
+    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
+        if veg_height_slider[0] == veg_height_slider[1]:
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
+        if len(filtered_df)==0:
+            return st.info("**Error**")
+        else:
+            return dataframe_table(filtered_df)
+
+    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+            return st.info("**Error**")
+        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+        if len(filtered_df2)==0:
+            return st.info("**Error**")
+        else:
+            return dataframe_table(filtered_df2)
 
 def display_number_filtered():
-    if (veg_height_slider == 0) and (conductor_height_slider == 0):
+    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
         return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
     
-    if (veg_height_slider == 0) and (conductor_height_slider != 0):
-        if conductor_height_slider[0] == conductor_height_slider[1]:
+    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+        if canopy_spread_slider[0] == canopy_spread_slider[1]:
             pass
         else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['h_conductor']>=conductor_height_slider[0]) & (locations[circuits]['h_conductor']<=conductor_height_slider[1])]
-            return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
+            filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
 
-    if (veg_height_slider != 0) and (conductor_height_slider == 0):
+    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
         if veg_height_slider[0] == veg_height_slider[1]:
             pass
         else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1])]
+            filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
             return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
 
-    if (veg_height_slider !=0) and (conductor_height_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (conductor_height_slider[0] == conductor_height_slider[1]):
+    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
             pass
         else:
-            filtered_df = locations[circuits].loc[((locations[circuits]['vegetation_height']>=veg_height_slider[0]) & (locations[circuits]['vegetation_height']<=veg_height_slider[1]))]
-            filtered_df2 = filtered_df[(filtered_df['h_conductor']>=conductor_height_slider[0]) & (filtered_df['h_conductor']<=conductor_height_slider[1])]
+            filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+            filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
             return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
 
 
 # run all functions
 display_number_filtered()
 update_map()
-#update_graph(locations[circuits])
+
+col1, col2 = st.columns([2,1])
+with col1:
+    st.write("**Vegetation Height Histogram**")
+    update_graph(locations[circuits])
+
+with col2:
+    st.write("**Table**")
+    update_table(locations[circuits])
+    download = st.download_button(label = f'📥 Download Full Table', data=locations[circuits].to_csv(), file_name=f"{circuits}_treecounts.csv")
 
 
 # if st.button('Reset Map View'):
