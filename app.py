@@ -63,12 +63,12 @@ def get_img_with_href(local_img_path, target_url):
         </a>'''
     return html_code
 
-png_html = get_img_with_href('data/geologo_smaller1.png', 'http://www.geo1.com')
+png_html = get_img_with_href('data/Geo1_TreeViewer_Logo1.png', 'http://www.geo1.com')
 
 
 # sidebar components
 st.sidebar.markdown(png_html, unsafe_allow_html=True)
-#st.sidebar.image(r'data/geologo_smaller1.png')#, use_column_width=True)
+#st.sidebar.image(r'data/Geo1_TreeViewer_Logo2.png', use_column_width=True)
 st.sidebar.write("")
 st.sidebar.write("")
 st.sidebar.header('1. Which Area Would You Like to View and Filter?')
