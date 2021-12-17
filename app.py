@@ -33,7 +33,7 @@ import s3fs
 veg1 = pd.read_csv(r'data/ElNido_TreeCounts.csv')
 veg2 = pd.read_csv(r'data/BarreVillaPark_TreeCounts.csv')
 df1 = veg1[['VEG_ID', 'LONGITUDE', 'LATITUDE', 'HEIGHT', 'AVG_SPREAD','TREE_SPECIES','LAST_TRIMMED']]
-df2 = veg2[['VEG_ID', 'LONGITUDE','LATITUDE', 'HEIGHT', 'AVG_SPREAD','VEG_ID','TREE_SPECIES','LAST_TRIMMED']]
+df2 = veg2[['VEG_ID', 'LONGITUDE','LATITUDE', 'HEIGHT', 'AVG_SPREAD','TREE_SPECIES','LAST_TRIMMED']]
 
 
 locations = {'El Nido-La Cienega': df1,'Barre-Villa Park': df2}
