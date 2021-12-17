@@ -159,7 +159,7 @@ def pydeck_map(df, lat, long):
                 pickable=True,
             )
         ],
-        tooltip={"html": "<b>Vegetation ID: </b> {VEG_ID}<br><b>Longitude: </b> {LONGITUDE}<br><b>Latitude: </b> {LATITUDE}<br><b>Species: </b> {TREE_SPECIES}<br><b>Tree Height: </b> {HEIGHT} ft<br><b>Average Canopy Spread: </b> {AVG_SPREAD} ft</br><b>Last Trimmed Date: </b> {LAST_TRIMMED} ft</br>", "style": {"color": "white"}}
+        tooltip={"html": "<b>Vegetation ID: </b> {str(VEG_ID)}<br><b>Longitude: </b> {LONGITUDE}<br><b>Latitude: </b> {LATITUDE}<br><b>Species: </b> {TREE_SPECIES}<br><b>Tree Height: </b> {HEIGHT} ft<br><b>Average Canopy Spread: </b> {AVG_SPREAD} ft</br><b>Last Trimmed Date: </b> {LAST_TRIMMED}</br>", "style": {"color": "white"}}
     ))
 
 def histogram(df):
