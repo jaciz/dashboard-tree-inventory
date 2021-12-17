@@ -32,12 +32,15 @@ import s3fs
 # vegetation data
 veg1 = pd.read_csv(r'data/ElNido_TreeCounts.csv')
 veg2 = pd.read_csv(r'data/BarreVillaPark_TreeCounts.csv')
-df1 = veg1[['LONGITUDE', 'LATITUDE', 'HEIGHT', 'AVG_SPREAD']]
-df2 = veg2[['LONGITUDE','LATITUDE', 'HEIGHT', 'AVG_SPREAD']]
+df1 = veg1[['VEG_ID', 'LONGITUDE', 'LATITUDE', 'HEIGHT', 'AVG_SPREAD','TREE_SPECIES','LAST_TRIMMED']]
+df2 = veg2[['VEG_ID', 'LONGITUDE','LATITUDE', 'HEIGHT', 'AVG_SPREAD','VEG_ID','TREE_SPECIES','LAST_TRIMMED']]
 
 
 locations = {'El Nido-La Cienega': df1,'Barre-Villa Park': df2}
 initial_latlong = {'El Nido-La Cienega': [-118.3697,33.9710],'Barre-Villa Park': [-117.9146,33.80742]}
+
+
+
 
 # page layout details
 st.set_page_config(page_title='Vegetation Violations Inventory', page_icon="🌲", layout='wide')
@@ -74,16 +77,29 @@ st.sidebar.write("")
 st.sidebar.header('1. Which Area Would You Like to View and Filter?')
 circuits = st.sidebar.selectbox('Location', ('El Nido-La Cienega', 'Barre-Villa Park'))
 
-st.sidebar.header('2. Which Attributes Would You Like to View?')
+st.sidebar.header('2. Tree Species')
+plant_species = locations[circuits]['TREE_SPECIES'].unique()
+checkmark_list = {}
+for species in plant_species:
+    check = st.sidebar.checkbox(species, value=True)
+    checkmark_list[species] = check
+
+st.sidebar.header('3. Which Attributes Would You Like to View?')
 options = st.sidebar.multiselect('Attributes',('Vegetation Height', 'Average Canopy Spread'))
+
+
+
+# Add in attributes for deciduous and coniferous as a selection? or dropdown
+# Add in attributes for what type of tree it is: Palm Tree, etc.
+
 
 veg_height_slider = 0
 canopy_spread_slider = 0
-st.sidebar.header('3. Filters')
+st.sidebar.header('4. Filters')
 if 'Vegetation Height' in options:
-    veg_height_slider = st.sidebar.slider('Vegetation Height (feet)', locations[circuits]['HEIGHT'].min(), locations[circuits]['HEIGHT'].max(), (float(locations[circuits]['HEIGHT'].min())+2, float(locations[circuits]['HEIGHT'].max())-2), 0.1)
+    veg_height_slider = st.sidebar.slider('Vegetation Height (feet)', locations[circuits]['HEIGHT'].min(), locations[circuits]['HEIGHT'].max(), (float(locations[circuits]['HEIGHT'].min()), float(locations[circuits]['HEIGHT'].max())), 0.1)
 if 'Average Canopy Spread' in options:
-    canopy_spread_slider = st.sidebar.slider('Average Canopy Spread (feet)', locations[circuits]['AVG_SPREAD'].min(), locations[circuits]['AVG_SPREAD'].max(), (float(locations[circuits]['AVG_SPREAD'].min())+2, float(locations[circuits]['AVG_SPREAD'].max())-2), 0.1)
+    canopy_spread_slider = st.sidebar.slider('Average Canopy Spread (feet)', locations[circuits]['AVG_SPREAD'].min(), locations[circuits]['AVG_SPREAD'].max(), (float(locations[circuits]['AVG_SPREAD'].min()), float(locations[circuits]['AVG_SPREAD'].max())), 0.1)
 
 attributes = {'Vegetation Height':locations[circuits]['HEIGHT'], 'Average Canopy Spread':locations[circuits]['HEIGHT']}
 
@@ -143,7 +159,7 @@ def pydeck_map(df, lat, long):
                 pickable=True,
             )
         ],
-        tooltip={"html": "<b>Tree Height: </b> {HEIGHT} ft<br><b>Average Canopy Spread: </b> {AVG_SPREAD} ft</br>", "style": {"color": "white"}}
+        tooltip={"html": "<b>Vegetation ID: </b> {VEG_ID}<br><b>Longitude: </b> {LONGITUDE}<br><b>Latitude: </b> {LATITUDE}<br><b>Species: </b> {TREE_SPECIES}<br><b>Tree Height: </b> {HEIGHT} ft<br><b>Average Canopy Spread: </b> {AVG_SPREAD} ft</br><b>Last Trimmed Date: </b> {LAST_TRIMMED} ft</br>", "style": {"color": "white"}}
     ))
 
 def histogram(df):
@@ -159,8 +175,13 @@ def histogram(df):
         titlefont=dict(size=15)
     ),
     showlegend=False,
-    bargap = 0.02
+    bargap = 0.02,
     )
+    fig.update_traces(
+    hovertemplate="<br>".join([
+        "Vegetation Height: %{x} ft",
+        "Count: %{y}",
+    ]))
     return st.plotly_chart(fig, use_container_width=True)
 
 def dataframe_table(df):
@@ -243,36 +264,45 @@ def update_graph(df):
             return histogram(filtered_df2)
 
 def update_table(df):
-    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
-        return dataframe_table(df)
+    #for key,value in checkmark_list.items():
+        if (veg_height_slider == 0) and (canopy_spread_slider == 0):
+            return dataframe_table(df)
 
-    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
-        if canopy_spread_slider[0] == canopy_spread_slider[1]:
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**")
-        else:
-            return dataframe_table(filtered_df)
+        if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+            if canopy_spread_slider[0] == canopy_spread_slider[1]:
+                return st.info("**Error**")
+            filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**")
+            else:
+                return dataframe_table(filtered_df)
 
-    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
-        if veg_height_slider[0] == veg_height_slider[1]:
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**")
-        else:
-            return dataframe_table(filtered_df)
+        if (veg_height_slider != 0) and (canopy_spread_slider == 0):
+            if veg_height_slider[0] == veg_height_slider[1]:
+                return st.info("**Error**")
+            filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**")
+            else:
+                return dataframe_table(filtered_df)
 
-    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
-        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df2)==0:
-            return st.info("**Error**")
+        if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+            if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+                return st.info("**Error**")
+            filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+            filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df2)==0:
+                return st.info("**Error**")
+            else:
+                return dataframe_table(filtered_df2)
+
+def species_update_map():
+    for key,value in checkmark_list.items():
+        if value:
+            filtered_df = locations[circuits][locations[circuits]['TREE_SPECIES'].str.contains(key)]
+            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
         else:
-            return dataframe_table(filtered_df2)
+            return pydeck_map(locations[circuits], initial_latlong[circuits][1], initial_latlong[circuits][0])
 
 def display_number_filtered():
     if (veg_height_slider == 0) and (canopy_spread_slider == 0):
@@ -301,9 +331,12 @@ def display_number_filtered():
             return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
 
 
+
+
 # run all functions
 display_number_filtered()
 update_map()
+#species_update_map() fix
 
 col1, col2 = st.columns([2,1])
 with col1:
@@ -314,6 +347,8 @@ with col2:
     st.write("**Table**")
     update_table(locations[circuits])
     download = st.download_button(label = f'📥 Download Full Table', data=locations[circuits].to_csv(), file_name=f"{circuits}_treecounts.csv")
+
+
 
 
 # if st.button('Reset Map View'):
