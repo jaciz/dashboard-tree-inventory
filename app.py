@@ -181,10 +181,7 @@ def histogram(df):
     bargap = 0.02,
     )
     fig.update_traces(
-    hovertemplate="<br>".join([
-        "Vegetation Height: %{x} ft",
-        "Count: %{y}",
-    ]))
+    hovertemplate="<b>Vegetation Heights:</b> %{x} ft" + "<br><b>Count:</b> %{y}</br>")
     return st.plotly_chart(fig, use_container_width=True)
 
 def dataframe_table(df):
@@ -203,78 +200,107 @@ def update_points_filtering_color(df):
     pass
 
 def update_map():
-    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
-        return pydeck_map(locations[circuits], initial_latlong[circuits][1], initial_latlong[circuits][0])
+    true_species=[]
+    for key,value in checkmark_list.items():
+        if value==True:
+            true_species.append(key)
 
-    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
-        if canopy_spread_slider[0] == canopy_spread_slider[1]:
-            return st.info("**Error**: No data available to display, please input a range")
-        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**: No data available to display, please input another range")
-        else:
-            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
+    if len(true_species) == 0:
+        return st.info("**Error**: No data available to display, please select a tree species")
+    else:
+        filtered_species_df = locations[circuits][locations[circuits]['TREE_SPECIES'].isin(true_species)]
+    
+        if (veg_height_slider == 0) and (canopy_spread_slider == 0):
+            return pydeck_map(filtered_species_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
-        if veg_height_slider[0] == veg_height_slider[1]:
-            return st.info("**Error**: No data available to display, please input a range")
-        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**: No data available to display, please input another range")
-        else:
-            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
+        if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+            if canopy_spread_slider[0] == canopy_spread_slider[1]:
+                return st.info("**Error**: No data available to display, please input a range")
+            filtered_df = filtered_species_df.loc[(filtered_species_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_species_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**: No data available to display, please input another range")
+            else:
+                return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
-    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
-            return st.info("**Error**: No data available to display, please input a range")
-        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
-        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df2)==0:
-            return st.info("**Error**: No data available to display, please input another range")
-        else:
-            return pydeck_map(filtered_df2, initial_latlong[circuits][1], initial_latlong[circuits][0])
+        if (veg_height_slider != 0) and (canopy_spread_slider == 0):
+            if veg_height_slider[0] == veg_height_slider[1]:
+                return st.info("**Error**: No data available to display, please input a range")
+            filtered_df = filtered_species_df.loc[(filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**: No data available to display, please input another range")
+            else:
+                return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
+
+        if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+            if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+                return st.info("**Error**: No data available to display, please input a range")
+            filtered_df = filtered_species_df.loc[((filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1]))]
+            filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df2)==0:
+                return st.info("**Error**: No data available to display, please input another range")
+            else:
+                return pydeck_map(filtered_df2, initial_latlong[circuits][1], initial_latlong[circuits][0])
 
 def update_graph(df):
-    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
-        return histogram(df)
+    true_species=[]
+    for key,value in checkmark_list.items():
+        if value==True:
+            true_species.append(key)
 
-    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
-        if canopy_spread_slider[0] == canopy_spread_slider[1]:
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**")
-        else:
-            return histogram(filtered_df)
-
-    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
-        if veg_height_slider[0] == veg_height_slider[1]:
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
-        if len(filtered_df)==0:
-            return st.info("**Error**")
-        else:
-            return histogram(filtered_df)
-
-    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
-            return st.info("**Error**")
-        filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
-        filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-        if len(filtered_df2)==0:
-            return st.info("**Error**")
-        else:
-            return histogram(filtered_df2)
-
-def update_table(df):
-    #for key,value in checkmark_list.items():
+    if len(true_species) == 0:
+        return st.info("**Error**")
+    else:
+        filtered_species_df = df[df['TREE_SPECIES'].isin(true_species)]
+        
         if (veg_height_slider == 0) and (canopy_spread_slider == 0):
-            return dataframe_table(df)
+            return histogram(filtered_species_df)
 
         if (veg_height_slider == 0) and (canopy_spread_slider != 0):
             if canopy_spread_slider[0] == canopy_spread_slider[1]:
                 return st.info("**Error**")
-            filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
+            filtered_df = filtered_species_df.loc[(filtered_species_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_species_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**")
+            else:
+                return histogram(filtered_df)
+
+        if (veg_height_slider != 0) and (canopy_spread_slider == 0):
+            if veg_height_slider[0] == veg_height_slider[1]:
+                return st.info("**Error**")
+            filtered_df = filtered_species_df.loc[(filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1])]
+            if len(filtered_df)==0:
+                return st.info("**Error**")
+            else:
+                return histogram(filtered_df)
+
+        if (veg_height_slider !=0) and (canopy_spread_slider != 0):
+            if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+                return st.info("**Error**")
+            filtered_df = filtered_species_df.loc[((filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1]))]
+            filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+            if len(filtered_df2)==0:
+                return st.info("**Error**")
+            else:
+                return histogram(filtered_df2)
+
+def update_table(df):
+    true_species=[]
+    for key,value in checkmark_list.items():
+        if value==True:
+            true_species.append(key)
+
+    if len(true_species) == 0:
+        return st.info("**Error**")
+    else:
+        filtered_species_df = df[df['TREE_SPECIES'].isin(true_species)]
+        
+        if (veg_height_slider == 0) and (canopy_spread_slider == 0):
+            return dataframe_table(filtered_species_df)
+
+        if (veg_height_slider == 0) and (canopy_spread_slider != 0):
+            if canopy_spread_slider[0] == canopy_spread_slider[1]:
+                return st.info("**Error**")
+            filtered_df = filtered_species_df.loc[(filtered_species_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_species_df['AVG_SPREAD']<=canopy_spread_slider[1])]
             if len(filtered_df)==0:
                 return st.info("**Error**")
             else:
@@ -283,7 +309,7 @@ def update_table(df):
         if (veg_height_slider != 0) and (canopy_spread_slider == 0):
             if veg_height_slider[0] == veg_height_slider[1]:
                 return st.info("**Error**")
-            filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
+            filtered_df = filtered_species_df.loc[(filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1])]
             if len(filtered_df)==0:
                 return st.info("**Error**")
             else:
@@ -292,46 +318,68 @@ def update_table(df):
         if (veg_height_slider !=0) and (canopy_spread_slider != 0):
             if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
                 return st.info("**Error**")
-            filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
+            filtered_df = filtered_species_df.loc[((filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1]))]
             filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
             if len(filtered_df2)==0:
                 return st.info("**Error**")
             else:
                 return dataframe_table(filtered_df2)
 
-def species_update_map():
+#def species_update_map():
+    true_species=[]
     for key,value in checkmark_list.items():
-        if value:
-            filtered_df = locations[circuits][locations[circuits]['TREE_SPECIES'].str.contains(key)]
-            return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
-        else:
-            return pydeck_map(locations[circuits], initial_latlong[circuits][1], initial_latlong[circuits][0])
+        if value==True:
+            true_species.append(key)
+
+    if len(true_species) == 0:
+        return st.write("No species selected")
+    else:
+        filtered_df = locations[circuits][locations[circuits]['TREE_SPECIES'].isin(true_species)]
+        return pydeck_map(filtered_df, initial_latlong[circuits][1], initial_latlong[circuits][0])
+
+
+
+conditions = {
+        'cond1':eval('(veg_height_slider == 0) and (canopy_spread_slider == 0)'),
+        'cond2':eval('(veg_height_slider == 0) and (canopy_spread_slider != 0)'),
+        'cond3':eval('(veg_height_slider != 0) and (canopy_spread_slider == 0)'),
+        'cond4':eval('(veg_height_slider !=0) and (canopy_spread_slider != 0)'),
+    }
 
 def display_number_filtered():
-    if (veg_height_slider == 0) and (canopy_spread_slider == 0):
-        return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
-    
-    if (veg_height_slider == 0) and (canopy_spread_slider != 0):
-        if canopy_spread_slider[0] == canopy_spread_slider[1]:
-            pass
-        else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['AVG_SPREAD']>=canopy_spread_slider[0]) & (locations[circuits]['AVG_SPREAD']<=canopy_spread_slider[1])]
-            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+    true_species=[]
+    for key,value in checkmark_list.items():
+        if value==True:
+            true_species.append(key)
 
-    if (veg_height_slider != 0) and (canopy_spread_slider == 0):
-        if veg_height_slider[0] == veg_height_slider[1]:
-            pass
-        else:
-            filtered_df = locations[circuits].loc[(locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1])]
-            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+    if len(true_species) == 0:
+        pass
+    else:
+        filtered_species_df = locations[circuits][locations[circuits]['TREE_SPECIES'].isin(true_species)]
 
-    if (veg_height_slider !=0) and (canopy_spread_slider != 0):
-        if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
-            pass
-        else:
-            filtered_df = locations[circuits].loc[((locations[circuits]['HEIGHT']>=veg_height_slider[0]) & (locations[circuits]['HEIGHT']<=veg_height_slider[1]))]
-            filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-            return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
+        if conditions['cond1']:
+            return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
+        if conditions['cond2']:
+            if canopy_spread_slider[0] == canopy_spread_slider[1]:
+                pass
+            else:
+                filtered_df = filtered_species_df.loc[(filtered_species_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_species_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+        if conditions['cond3']:
+            if veg_height_slider[0] == veg_height_slider[1]:
+                pass
+            else:
+                filtered_df = filtered_species_df.loc[(filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1])]
+                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+        if conditions['cond4']:
+            if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
+                pass
+            else:
+                filtered_df = filtered_species_df.loc[((filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1]))]
+                filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
+                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
+
+
 
 
 
@@ -339,7 +387,7 @@ def display_number_filtered():
 # run all functions
 display_number_filtered()
 update_map()
-#species_update_map() fix
+
 
 col1, col2 = st.columns([2,1])
 with col1:
