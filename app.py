@@ -358,7 +358,7 @@ def display_number_filtered():
         filtered_species_df = locations[circuits][locations[circuits]['TREE_SPECIES'].isin(true_species)]
 
         if conditions['cond1']:
-            return st.write('**The number of trees displayed: ** ' + str(len(locations[circuits])))
+            return st.write('**The number of trees displayed: ** ' + str(len(filtered_species_df)))
         if conditions['cond2']:
             if canopy_spread_slider[0] == canopy_spread_slider[1]:
                 pass
