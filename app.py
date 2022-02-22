@@ -358,26 +358,26 @@ def display_number_filtered():
         filtered_species_df = locations[circuits][locations[circuits]['TREE_SPECIES'].isin(true_species)]
 
         if conditions['cond1']:
-            return st.write('**The number of trees displayed: ** ' + str(len(filtered_species_df)))
+            return st.write('**The number of trees displayed:** ' + str(len(filtered_species_df)))
         if conditions['cond2']:
             if canopy_spread_slider[0] == canopy_spread_slider[1]:
                 pass
             else:
                 filtered_df = filtered_species_df.loc[(filtered_species_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_species_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+                return st.write('**The number of trees displayed:** ' + str(len(filtered_df)))
         if conditions['cond3']:
             if veg_height_slider[0] == veg_height_slider[1]:
                 pass
             else:
                 filtered_df = filtered_species_df.loc[(filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1])]
-                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df)))
+                return st.write('**The number of trees displayed:** ' + str(len(filtered_df)))
         if conditions['cond4']:
             if (veg_height_slider[0] == veg_height_slider[1]) or (canopy_spread_slider[0] == canopy_spread_slider[1]):
                 pass
             else:
                 filtered_df = filtered_species_df.loc[((filtered_species_df['HEIGHT']>=veg_height_slider[0]) & (filtered_species_df['HEIGHT']<=veg_height_slider[1]))]
                 filtered_df2 = filtered_df[(filtered_df['AVG_SPREAD']>=canopy_spread_slider[0]) & (filtered_df['AVG_SPREAD']<=canopy_spread_slider[1])]
-                return st.write('**The number of trees displayed: ** ' + str(len(filtered_df2)))
+                return st.write('**The number of trees displayed:** ' + str(len(filtered_df2)))
 
 
 
